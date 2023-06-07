@@ -78,7 +78,7 @@ def tf_fftshift2d(a_tensor, input_shape=None):
         new_tensor = tf.gather(new_tensor, mylist, axis=axis)
     return new_tensor
 
-
+# 傅里叶变换
 def tf_ifftshift2d(a_tensor, input_shape=None):
     """
     Adapted from [Sitzmann et al. 2018]
@@ -535,6 +535,7 @@ class FresnelPropagation(Propagation):
 
 
 # angular spectrum propagation
+# 角谱传播
 class ASPropagation(Propagation):
     def __init__(self,
                  input_shape,

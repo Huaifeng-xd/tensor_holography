@@ -22,6 +22,7 @@ class TFRecordGenerator(abc.ABC):
         elif file_paths is None:
             if len(dir_paths) != len(labels):
                 raise ValueError("Length of file_paths and labels are not equal")
+            # 列表元素依次是各个标签对应的文件路径列表
             file_paths = self._convert_dir_to_file_path(dir_paths)
         
         files_count = np.array([len(files) for files in file_paths])
@@ -38,8 +39,10 @@ class TFRecordGenerator(abc.ABC):
             for count, img_paths in enumerate(self.file_paths):
                 example = self._convert_one_example(img_paths)
                 writer.write(example.SerializeToString())
+                # 字符串格式化实现整数前面自动补0的用法{:0>4d}
                 print("complete {:0>4d}/{:0>4d} example".format(count+1, self.file_count))
 
+    # 整合所有文件夹的绝对路径成列表
     def _convert_dir_to_file_path(self, dir_paths):
         file_paths = []
         for dir_path in dir_paths:
@@ -65,10 +68,12 @@ class TFRecordGeneratorforTH(TFRecordGenerator):
         for count, img_path in enumerate(img_paths):
             # save exr image as float32 1d-array in **NCHW** format
             # for best GPU inference performance
+            # channel first
             tmp = np.transpose(cv2.imread(img_path, -1), [2,0,1])
             if self.labels[count].startswith("depth"):
                 # keep depth image as single channel to reduce memory cost
                 tmp = tmp[0,:,:]
+
             tmp = tmp.flatten()
             features[self.labels[count]] = tf.train.Feature(float_list = tf.train.FloatList(value=tmp))
 
@@ -87,6 +92,7 @@ class TFRecordExtractor(abc.ABC):
         self.iterator = None
         self.update_record_path(tfrecord_path, dataset_params, labels)
 
+    # 参数传入tfrecord的位置
     def update_record_path(self, tfrecord_path, dataset_params, labels):
         self.tfrecord_path = os.path.abspath(tfrecord_path)
         self.dataset_params = dataset_params
@@ -102,8 +108,11 @@ class TFRecordExtractor(abc.ABC):
         dataset = dataset.shuffle(buffer_size=self.dataset_params["shuffle_buffer_size"])
         if self.dataset_params["repeat"]:
             dataset = dataset.repeat()
+        # 并行：训练4 测试2
+        # 对dataset中的数据均执行_extract_fn
         dataset = dataset.map(self._extract_fn, num_parallel_calls=self.dataset_params["num_parallel_calls"])
         dataset = dataset.batch(self.dataset_params["batch"])
+        # prefetch就是预取部分数据集，就是training的时候异步把数据从cpu移到gpu，降低cpu到gpu的io等待时间充分利用gpu。
         dataset = dataset.prefetch(buffer_size=self.dataset_params["prefetch_buffer_size"])
         iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
         self.iterator = iterator
@@ -120,9 +129,10 @@ class TFRecordExtractorforTH(TFRecordExtractor):
         for element in self.labels:
             # restore image in to 3d with provided shape
             if element.startswith("depth"):
-                # load as single channel image
+                # load as single channel image 传入相应的shape
                 features[element] = tf.io.FixedLenFeature((1, self.dataset_params["res_h"], self.dataset_params["res_w"]), tf.float32) 
             else:
+                # 对应c=3 rgb图片
                 features[element] = tf.io.FixedLenFeature((3, self.dataset_params["res_h"], self.dataset_params["res_w"]), tf.float32) 
 
         # Extract the data record
