@@ -9,46 +9,6 @@ from util import *
 
 
 class TensorHolographyModel():
-    def __init__(self,
-                 hologram_params,
-                 training_params,
-                 model_params,
-                 loss_params,
-                 path_params,
-                 train_dataset_params,
-                 test_dataset_params,
-                 validate_dataset_params):
-
-        self.hologram_params = hologram_params
-        self.training_params = training_params
-        self.model_params = model_params
-        self.loss_params = loss_params
-        self.path_params = path_params
-        self.train_dataset_params = train_dataset_params
-        self.test_dataset_params = test_dataset_params
-        self.validate_dataset_params = validate_dataset_params
-        self.model_vars = None
-
-        config = tf.compat.v1.ConfigProto()
-        config.gpu_options.allow_growth = True
-        self.sess = tf.compat.v1.Session(config=config)
-
-        # build tfrecord if path_params["gen_record"] is true
-        if path_params["gen_record"]:
-            generator = tfrecord.TFRecordGeneratorforTH(self.path_params["train_output_path"],
-                                                        self.path_params["labels"],
-                                                        self.path_params["train_source_paths"])
-            generator.generate_record()
-            generator.update_record_paths(self.path_params["test_output_path"],
-                                          self.path_params["labels"],
-                                          self.path_params["test_source_paths"])
-            generator.generate_record()
-            generator.update_record_paths(self.path_params["validate_output_path"],
-                                          self.path_params["labels"],
-                                          self.path_params["validate_source_paths"])
-            generator.generate_record()
-            print("tfrecord generation done!")
-
     def _build_model_vars(self):
         fw = np.full((self.model_params["num_layers"]), self.model_params["filter_width"], dtype=int)
         fnum = np.append(
@@ -177,6 +137,46 @@ class TensorHolographyModel():
                                      self.path_params["labels"])
         validate_iterator = extractor.build_dataset()
         return train_iterator, test_iterator, validate_iterator
+
+    def __init__(self,
+                 hologram_params,
+                 training_params,
+                 model_params,
+                 loss_params,
+                 path_params,
+                 train_dataset_params,
+                 test_dataset_params,
+                 validate_dataset_params):
+
+        self.hologram_params = hologram_params
+        self.training_params = training_params
+        self.model_params = model_params
+        self.loss_params = loss_params
+        self.path_params = path_params
+        self.train_dataset_params = train_dataset_params
+        self.test_dataset_params = test_dataset_params
+        self.validate_dataset_params = validate_dataset_params
+        self.model_vars = None
+
+        config = tf.compat.v1.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.sess = tf.compat.v1.Session(config=config)
+
+        # build tfrecord if path_params["gen_record"] is true
+        if path_params["gen_record"]:
+            generator = tfrecord.TFRecordGeneratorforTH(self.path_params["train_output_path"],
+                                                        self.path_params["labels"],
+                                                        self.path_params["train_source_paths"])
+            generator.generate_record()
+            generator.update_record_paths(self.path_params["test_output_path"],
+                                          self.path_params["labels"],
+                                          self.path_params["test_source_paths"])
+            generator.generate_record()
+            generator.update_record_paths(self.path_params["validate_output_path"],
+                                          self.path_params["labels"],
+                                          self.path_params["validate_source_paths"])
+            generator.generate_record()
+            print("tfrecord generation done!")
 
     def _preprocess_input(self, example):
         # load RGB-D input
